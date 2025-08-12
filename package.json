@@ -28,14 +28,14 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "moment": "^2.29.4",
-    "sqlite3": "^5.1.6"
+    "moment": "^2.29.4"
   },
   "optionalDependencies": {
-    "swisseph": "^0.5.17"
+    "swisseph": "^0.5.17",
+    "sqlite3": "^5.1.6"
   },
   "engines": {
-    "node": "18.x"
+    "node": "22.x"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
