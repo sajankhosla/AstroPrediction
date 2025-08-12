@@ -1,8 +1,15 @@
-const sqlite3 = require('sqlite3').verbose();
+let sqlite3;
+try {
+  sqlite3 = require('sqlite3').verbose();
+} catch (err) {
+  console.warn('sqlite3 not available. Using in-memory mock database.');
+}
 const path = require('path');
 
 // Database file path
-const dbPath = path.join(__dirname, '../data/astrology.db');
+const isServerless = !!process.env.VERCEL || !!process.env.NOW_REGION;
+const dbDir = isServerless ? '/tmp' : path.join(__dirname, '../data');
+const dbPath = path.join(dbDir, 'astrology.db');
 
 // Initialize database tables
 const initializeDatabase = () => {
@@ -78,17 +85,28 @@ const initializeDatabase = () => {
 };
 
 // Create database connection
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('Error opening database:', err.message);
-  } else {
-    console.log('✅ Connected to SQLite database');
-    // Initialize database tables
-    initializeDatabase().catch(err => {
-      console.error('❌ Database initialization failed:', err);
-    });
-  }
-});
+let db;
+if (sqlite3) {
+  db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+      console.error('Error opening database:', err.message);
+    } else {
+      console.log('✅ Connected to SQLite database');
+      // Initialize database tables
+      initializeDatabase().catch(err => {
+        console.error('❌ Database initialization failed:', err);
+      });
+    }
+  });
+} else {
+  const memory = { users: [], predictions: [], milestones: [] };
+  db = {
+    getAsync: async () => null,
+    allAsync: async () => [],
+    runAsync: async () => ({ lastID: null, changes: 0 })
+  };
+  console.log('⚠️ Using in-memory mock DB (no persistence)');
+}
 
 // Helper functions for database operations
 const dbHelpers = {

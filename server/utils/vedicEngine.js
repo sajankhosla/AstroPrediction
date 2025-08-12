@@ -1,4 +1,12 @@
-const swisseph = require('swisseph');
+let swisseph;
+try {
+  // Optional native module; may fail on serverless
+  // eslint-disable-next-line import/no-unresolved
+  swisseph = require('swisseph');
+} catch (err) {
+  console.warn('Swiss Ephemeris not available, using fallback calculations only.');
+  swisseph = null;
+}
 const moment = require('moment');
 const path = require('path');
 const { analyzeClassicalPrinciples } = require('./classicalPrinciples');
@@ -46,8 +54,10 @@ class VedicAstrologyEngine {
       12: -0.4  // Losses - negative
     };
     
-    // Initialize Swiss Ephemeris
-    swisseph.swe_set_ephe_path(path.join(__dirname, '../ephemeris'));
+    // Initialize Swiss Ephemeris if available
+    if (swisseph && typeof swisseph.swe_set_ephe_path === 'function') {
+      swisseph.swe_set_ephe_path(path.join(__dirname, '../ephemeris'));
+    }
   }
 
   // Calculate planetary positions for a given date and location
@@ -63,14 +73,28 @@ class VedicAstrologyEngine {
       if (planet !== 'URANUS' && planet !== 'NEPTUNE' && planet !== 'PLUTO') {
         try {
           console.log(`  Calculating ${planet}...`);
-          const result = swisseph.swe_calc_ut(julianDay, this.planets[planet], swisseph.SEFLG_SWIEPH);
-          positions[planet] = {
-            longitude: result.longitude,
-            latitude: result.latitude,
-            distance: result.distance,
-            house: this.getHouseFromLongitude(result.longitude, latitude, longitude, julianDay)
-          };
-          console.log(`  ✅ ${planet}: ${result.longitude.toFixed(2)}° in House ${positions[planet].house}`);
+          if (swisseph && typeof swisseph.swe_calc_ut === 'function') {
+            const result = swisseph.swe_calc_ut(julianDay, this.planets[planet], swisseph.SEFLG_SWIEPH);
+            positions[planet] = {
+              longitude: result.longitude,
+              latitude: result.latitude,
+              distance: result.distance,
+              house: this.getHouseFromLongitude(result.longitude, latitude, longitude, julianDay)
+            };
+          } else {
+            // Fallback deterministic approximation
+            const seed = (new Date(date).getTime() / (1000 * 60 * 60 * 24)) % 360;
+            const offsetMap = { SUN: 0, MOON: 13, MERCURY: 4, VENUS: 1.6, MARS: 0.5, JUPITER: 0.08, SATURN: 0.03 };
+            const speed = offsetMap[planet] || 1;
+            const longitudeDeg = (seed * speed) % 360;
+            positions[planet] = {
+              longitude: longitudeDeg,
+              latitude: 0,
+              distance: 1,
+              house: this.getHouseFromLongitude(longitudeDeg, latitude, longitude, julianDay)
+            };
+          }
+          console.log(`  ✅ ${planet}: ${positions[planet].longitude.toFixed(2)}° in House ${positions[planet].house}`);
         } catch (error) {
           console.error(`❌ Error calculating ${planet}:`, error);
         }
@@ -90,22 +114,28 @@ class VedicAstrologyEngine {
     const hour = momentDate.hour();
     const minute = momentDate.minute();
     
-    return swisseph.swe_julday(year, month, day, hour + minute / 60, swisseph.SE_GREG_CAL);
+    if (swisseph && typeof swisseph.swe_julday === 'function') {
+      return swisseph.swe_julday(year, month, day, hour + minute / 60, swisseph.SE_GREG_CAL);
+    }
+    // Unix epoch (ms) to Julian Day approximation
+    return (momentDate.valueOf() / 86400000) + 2440587.5;
   }
 
   // Calculate Ascendant (Rising Sign) for location
   calculateAscendant(julianDay, latitude, longitude) {
     try {
-      // Calculate house cusps using Swiss Ephemeris
-      const houses = swisseph.swe_houses(julianDay, latitude, longitude, 'P'); // P = Placidus
-      return {
-        ascendant: houses.ascendant,
-        mc: houses.mc,
-        armc: houses.armc,
-        vertex: houses.vertex,
-        equatorialAscendant: houses.equasc,
-        houseCusps: houses.cusps
-      };
+      if (swisseph && typeof swisseph.swe_houses === 'function') {
+        const houses = swisseph.swe_houses(julianDay, latitude, longitude, 'P'); // P = Placidus
+        return {
+          ascendant: houses.ascendant,
+          mc: houses.mc,
+          armc: houses.armc,
+          vertex: houses.vertex,
+          equatorialAscendant: houses.equasc,
+          houseCusps: houses.cusps
+        };
+      }
+      throw new Error('Swiss ephemeris not available');
     } catch (error) {
       console.error('❌ Error calculating ascendant:', error);
       // Fallback to simplified calculation based on location
