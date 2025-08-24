@@ -20,12 +20,13 @@ const configurePassport = (db) => {
     }
   });
 
-  // Google OAuth Strategy
-  passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback"
-  },
+  // Google OAuth Strategy (only if credentials are provided)
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    passport.use(new GoogleStrategy({
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/api/auth/google/callback"
+    },
   async (accessToken, refreshToken, profile, done) => {
     try {
       console.log('🔍 Google OAuth: Processing user', profile.emails[0].value);
@@ -67,14 +68,18 @@ const configurePassport = (db) => {
       return done(error, null);
     }
   }));
+  } else {
+    console.log('⚠️ Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+  }
 
-  // Facebook OAuth Strategy
-  passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID,
-    clientSecret: process.env.FACEBOOK_APP_SECRET,
-    callbackURL: "/api/auth/facebook/callback",
-    profileFields: ['id', 'displayName', 'emails', 'photos']
-  },
+  // Facebook OAuth Strategy (only if credentials are provided)
+  if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+    passport.use(new FacebookStrategy({
+      clientID: process.env.FACEBOOK_APP_ID,
+      clientSecret: process.env.FACEBOOK_APP_SECRET,
+      callbackURL: "/api/auth/facebook/callback",
+      profileFields: ['id', 'displayName', 'emails', 'photos']
+    },
   async (accessToken, refreshToken, profile, done) => {
     try {
       console.log('🔍 Facebook OAuth: Processing user', profile.emails[0].value);
@@ -116,6 +121,9 @@ const configurePassport = (db) => {
       return done(error, null);
     }
   }));
+  } else {
+    console.log('⚠️ Facebook OAuth not configured - missing FACEBOOK_APP_ID or FACEBOOK_APP_SECRET');
+  }
 };
 
 module.exports = configurePassport;

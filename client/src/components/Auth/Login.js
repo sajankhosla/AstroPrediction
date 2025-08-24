@@ -71,14 +71,34 @@ const Login = ({ onSwitchToRegister, onLoginSuccess }) => {
     onLoginSuccess(demoUser);
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     const API_BASE_URL = process.env.REACT_APP_API_URL || '';
-    window.location.href = `${API_BASE_URL}/api/auth/google`;
+    try {
+      // Check if Google OAuth is available
+      const response = await fetch(`${API_BASE_URL}/api/auth/google`, { method: 'HEAD' });
+      if (response.status === 503) {
+        toast.error('Google sign-in is not configured on this server');
+        return;
+      }
+      window.location.href = `${API_BASE_URL}/api/auth/google`;
+    } catch (error) {
+      window.location.href = `${API_BASE_URL}/api/auth/google`;
+    }
   };
 
-  const handleFacebookLogin = () => {
+  const handleFacebookLogin = async () => {
     const API_BASE_URL = process.env.REACT_APP_API_URL || '';
-    window.location.href = `${API_BASE_URL}/api/auth/facebook`;
+    try {
+      // Check if Facebook OAuth is available
+      const response = await fetch(`${API_BASE_URL}/api/auth/facebook`, { method: 'HEAD' });
+      if (response.status === 503) {
+        toast.error('Facebook sign-in is not configured on this server');
+        return;
+      }
+      window.location.href = `${API_BASE_URL}/api/auth/facebook`;
+    } catch (error) {
+      window.location.href = `${API_BASE_URL}/api/auth/facebook`;
+    }
   };
 
   return (

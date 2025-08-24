@@ -232,61 +232,81 @@ router.put('/change-password', authenticateToken, async (req, res) => {
   }
 });
 
-// Google OAuth Routes
-router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+// Google OAuth Routes (only if configured)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  router.get('/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
 
-router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  async (req, res) => {
-    try {
-      // Create JWT token for the user
-      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
-      
-      // Remove sensitive data
-      const user = { ...req.user };
-      delete user.password;
-      delete user.googleId;
-      delete user.facebookId;
+  router.get('/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    async (req, res) => {
+      try {
+        // Create JWT token for the user
+        const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+        
+        // Remove sensitive data
+        const user = { ...req.user };
+        delete user.password;
+        delete user.googleId;
+        delete user.facebookId;
 
-      // Redirect to frontend with token
-      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
-    } catch (error) {
-      console.error('Google OAuth callback error:', error);
-      res.redirect('/login?error=oauth_failed');
+        // Redirect to frontend with token
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+      } catch (error) {
+        console.error('Google OAuth callback error:', error);
+        res.redirect('/login?error=oauth_failed');
+      }
     }
-  }
-);
+  );
+} else {
+  // Fallback routes when OAuth is not configured
+  router.get('/google', (req, res) => {
+    res.status(503).json({ error: 'Google OAuth not configured' });
+  });
+  router.get('/google/callback', (req, res) => {
+    res.status(503).json({ error: 'Google OAuth not configured' });
+  });
+}
 
-// Facebook OAuth Routes
-router.get('/facebook',
-  passport.authenticate('facebook', { scope: ['email'] })
-);
+// Facebook OAuth Routes (only if configured)
+if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
+  router.get('/facebook',
+    passport.authenticate('facebook', { scope: ['email'] })
+  );
 
-router.get('/facebook/callback',
-  passport.authenticate('facebook', { failureRedirect: '/login' }),
-  async (req, res) => {
-    try {
-      // Create JWT token for the user
-      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
-      
-      // Remove sensitive data
-      const user = { ...req.user };
-      delete user.password;
-      delete user.googleId;
-      delete user.facebookId;
+  router.get('/facebook/callback',
+    passport.authenticate('facebook', { failureRedirect: '/login' }),
+    async (req, res) => {
+      try {
+        // Create JWT token for the user
+        const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+        
+        // Remove sensitive data
+        const user = { ...req.user };
+        delete user.password;
+        delete user.googleId;
+        delete user.facebookId;
 
-      // Redirect to frontend with token
-      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
-      res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
-    } catch (error) {
-      console.error('Facebook OAuth callback error:', error);
-      res.redirect('/login?error=oauth_failed');
+        // Redirect to frontend with token
+        const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+      } catch (error) {
+        console.error('Facebook OAuth callback error:', error);
+        res.redirect('/login?error=oauth_failed');
+      }
     }
-  }
-);
+  );
+} else {
+  // Fallback routes when OAuth is not configured
+  router.get('/facebook', (req, res) => {
+    res.status(503).json({ error: 'Facebook OAuth not configured' });
+  });
+  router.get('/facebook/callback', (req, res) => {
+    res.status(503).json({ error: 'Facebook OAuth not configured' });
+  });
+}
 
 // OAuth success endpoint (for frontend to call)
 router.get('/oauth/success', (req, res) => {
