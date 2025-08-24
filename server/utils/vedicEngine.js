@@ -10,13 +10,20 @@ try {
 const moment = require('moment');
 const path = require('path');
 const { analyzeClassicalPrinciples } = require('./classicalPrinciples');
+const NakshatraSystem = require('./nakshatraSystem');
+const PlanetaryStrengthCalculator = require('./planetaryStrength');
 
 class VedicAstrologyEngine {
   constructor() {
     this.planets = {
       SUN: 0, MOON: 1, MERCURY: 2, VENUS: 3, MARS: 4,
-      JUPITER: 5, SATURN: 6, URANUS: 7, NEPTUNE: 8, PLUTO: 9
+      JUPITER: 5, SATURN: 6, URANUS: 7, NEPTUNE: 8, PLUTO: 9,
+      RAHU: 10, KETU: 11  // Lunar nodes
     };
+    
+    // Initialize enhanced systems
+    this.nakshatraSystem = new NakshatraSystem();
+    this.strengthCalculator = new PlanetaryStrengthCalculator();
     
     this.houses = {
       ARIES: 0, TAURUS: 1, GEMINI: 2, CANCER: 3,
@@ -70,39 +77,101 @@ class VedicAstrologyEngine {
     const positions = {};
     
     Object.keys(this.planets).forEach(planet => {
-      if (planet !== 'URANUS' && planet !== 'NEPTUNE' && planet !== 'PLUTO') {
-        try {
-          console.log(`  Calculating ${planet}...`);
-          if (swisseph && typeof swisseph.swe_calc_ut === 'function') {
-            const result = swisseph.swe_calc_ut(julianDay, this.planets[planet], swisseph.SEFLG_SWIEPH);
-            positions[planet] = {
-              longitude: result.longitude,
-              latitude: result.latitude,
-              distance: result.distance,
-              house: this.getHouseFromLongitude(result.longitude, latitude, longitude, julianDay)
+      if (['URANUS', 'NEPTUNE', 'PLUTO'].includes(planet)) {
+        // Skip outer planets in traditional Vedic astrology
+        return;
+      }
+
+      try {
+        console.log(`  Calculating ${planet} with nakshatra...`);
+        let result;
+        
+        if (swisseph && typeof swisseph.swe_calc_ut === 'function') {
+          if (['RAHU', 'KETU'].includes(planet)) {
+            // Calculate lunar nodes
+            const nodeResult = swisseph.swe_calc_ut(julianDay, swisseph.SE_MEAN_NODE, swisseph.SEFLG_SWIEPH);
+            result = {
+              longitude: planet === 'RAHU' ? nodeResult.longitude : (nodeResult.longitude + 180) % 360,
+              latitude: 0, // Nodes have no latitude
+              distance: nodeResult.distance
             };
           } else {
-            // Fallback deterministic approximation
-            const seed = (new Date(date).getTime() / (1000 * 60 * 60 * 24)) % 360;
-            const offsetMap = { SUN: 0, MOON: 13, MERCURY: 4, VENUS: 1.6, MARS: 0.5, JUPITER: 0.08, SATURN: 0.03 };
-            const speed = offsetMap[planet] || 1;
-            const longitudeDeg = (seed * speed) % 360;
-            positions[planet] = {
-              longitude: longitudeDeg,
-              latitude: 0,
-              distance: 1,
-              house: this.getHouseFromLongitude(longitudeDeg, latitude, longitude, julianDay)
-            };
+            result = swisseph.swe_calc_ut(julianDay, this.planets[planet], swisseph.SEFLG_SWIEPH);
           }
-          console.log(`  ✅ ${planet}: ${positions[planet].longitude.toFixed(2)}° in House ${positions[planet].house}`);
-        } catch (error) {
-          console.error(`❌ Error calculating ${planet}:`, error);
+        } else {
+          // Fallback deterministic approximation
+          const seed = (new Date(date).getTime() / (1000 * 60 * 60 * 24)) % 360;
+          const offsetMap = { 
+            SUN: 0, MOON: 13, MERCURY: 4, VENUS: 1.6, MARS: 0.5, 
+            JUPITER: 0.08, SATURN: 0.03, RAHU: -0.05, KETU: -0.05 
+          };
+          const speed = offsetMap[planet] || 1;
+          result = {
+            longitude: (seed * speed) % 360,
+            latitude: 0,
+            distance: 1
+          };
         }
+
+        // Calculate nakshatra for this planet
+        const nakshatra = this.nakshatraSystem.calculateNakshatra(result.longitude);
+        
+        // Calculate planetary dignity and strength
+        const dignity = this.strengthCalculator.calculatePlanetaryDignity(planet, result.longitude);
+        const spiritualStrength = this.strengthCalculator.calculateSpiritualStrength(
+          planet, result.longitude, nakshatra
+        );
+
+        positions[planet] = {
+          longitude: result.longitude,
+          latitude: result.latitude,
+          distance: result.distance,
+          house: this.getHouseFromLongitude(result.longitude, latitude, longitude, julianDay),
+          nakshatra: nakshatra,
+          dignity: dignity,
+          spiritual_strength: spiritualStrength,
+          sign: this.strengthCalculator.getSignFromLongitude(result.longitude)
+        };
+
+        console.log(`  ✅ ${planet}: ${nakshatra ? nakshatra.name : 'Unknown'} nakshatra, ${dignity.status} dignity, House ${positions[planet].house}`);
+        
+      } catch (error) {
+        console.error(`❌ Error calculating ${planet}:`, error);
+        // Provide minimal fallback
+        positions[planet] = {
+          longitude: 0,
+          latitude: 0,
+          distance: 1,
+          house: 1,
+          nakshatra: null,
+          dignity: { status: 'UNKNOWN', strength: 0 },
+          spiritual_strength: 0.5
+        };
       }
     });
     
+    // Calculate overall chart strength and planetary interactions
+    const nakshatraData = this.extractNakshatraData(positions);
+    const overallStrength = this.strengthCalculator.calculateOverallPlanetaryStrength(positions, nakshatraData);
+    
     console.log('✅ Planetary positions calculation complete');
-    return positions;
+    console.log(`📊 Chart strength: ${overallStrength.overall_chart_strength.chart_grade}`);
+    
+    return {
+      ...positions,
+      chart_analysis: overallStrength
+    };
+  }
+  
+  // Extract nakshatra data for strength calculations
+  extractNakshatraData(positions) {
+    const nakshatraData = {};
+    for (const [planet, position] of Object.entries(positions)) {
+      if (position && position.nakshatra) {
+        nakshatraData[planet] = position.nakshatra;
+      }
+    }
+    return nakshatraData;
   }
 
   // Convert date to Julian Day
@@ -365,12 +434,21 @@ class VedicAstrologyEngine {
     const dasha = this.calculateDasha(birthDate, targetDate);
     console.log('✅ Current dasha period:', dasha);
     
-    // Calculate current positivity score (base)
-    console.log('📊 Calculating positivity score...');
-    const positivityScore = this.calculatePositivityScore(birthDate, targetDate, latitude, longitude);
-    // Apply classical adjustment (clamped)
-    const adjustedPositivityScore = Math.max(-1, Math.min(1, positivityScore + (classicalInsights.classicalAdjustment || 0)));
-    console.log('✅ Current positivity score (base, adjusted):', positivityScore, adjustedPositivityScore);
+    // Calculate spiritual connections and birth nakshatra
+    console.log('🕉️ Calculating spiritual connections...');
+    const birthMoonNakshatra = planetaryPositions.MOON ? planetaryPositions.MOON.nakshatra : null;
+    const spiritualProfile = this.calculateSpiritualProfile(planetaryPositions, birthMoonNakshatra);
+    console.log(`✅ Birth Moon Nakshatra: ${birthMoonNakshatra ? birthMoonNakshatra.name : 'Unknown'}`);
+    
+    // Calculate current positivity score (base) with spiritual enhancements
+    console.log('📊 Calculating enhanced positivity score...');
+    const positivityScore = this.calculateEnhancedPositivityScore(birthDate, targetDate, latitude, longitude, planetaryPositions);
+    // Apply classical and spiritual adjustments
+    const spiritualAdjustment = spiritualProfile.overall_spiritual_strength * 0.2;
+    const adjustedPositivityScore = Math.max(-1, Math.min(1, 
+      positivityScore + (classicalInsights.classicalAdjustment || 0) + spiritualAdjustment
+    ));
+    console.log('✅ Positivity score (base, adjusted, spiritual):', positivityScore, adjustedPositivityScore, spiritualAdjustment);
     
     // Generate sinusoid data
     console.log('📈 Generating sinusoid data...');
@@ -428,7 +506,8 @@ class VedicAstrologyEngine {
       aspects,
       dasha,
       positivityScore, // base
-      adjustedPositivityScore, // adjusted using classical texts
+      adjustedPositivityScore, // adjusted using classical texts and spiritual factors
+      spiritualProfile,
       classicalInsights,
       sinusoidData,
       milestoneAnalysis,
@@ -747,6 +826,233 @@ class VedicAstrologyEngine {
     }
     
     return prediction;
+  }
+
+  // Calculate comprehensive spiritual profile
+  calculateSpiritualProfile(planetaryPositions, birthMoonNakshatra) {
+    const profile = {
+      birth_moon_nakshatra: birthMoonNakshatra,
+      spiritual_strengths: {},
+      karmic_indicators: {},
+      spiritual_path: null,
+      spiritual_challenges: [],
+      spiritual_gifts: [],
+      overall_spiritual_strength: 0
+    };
+
+    let totalSpiritualStrength = 0;
+    let planetCount = 0;
+
+    // Analyze each planet's spiritual contribution
+    for (const [planet, position] of Object.entries(planetaryPositions)) {
+      if (!position || !position.spiritual_strength) continue;
+
+      const spiritualStrength = position.spiritual_strength || 0;
+      totalSpiritualStrength += spiritualStrength;
+      planetCount++;
+
+      profile.spiritual_strengths[planet] = {
+        strength: spiritualStrength,
+        nakshatra: position.nakshatra,
+        dignity: position.dignity,
+        spiritual_lessons: position.nakshatra ? position.nakshatra.spiritual_lesson : null
+      };
+
+      // Special spiritual indicators
+      if (planet === 'JUPITER' && spiritualStrength > 0.7) {
+        profile.spiritual_gifts.push('Strong wisdom and teaching abilities');
+      }
+      if (planet === 'KETU' && spiritualStrength > 0.6) {
+        profile.spiritual_gifts.push('Natural inclination toward moksha and liberation');
+      }
+      if (planet === 'MOON' && position.nakshatra) {
+        profile.spiritual_path = this.determineSpiritualPath(position.nakshatra);
+      }
+    }
+
+    profile.overall_spiritual_strength = planetCount > 0 ? totalSpiritualStrength / planetCount : 0.5;
+
+    // Determine karmic indicators
+    profile.karmic_indicators = this.analyzeKarmicIndicators(planetaryPositions);
+
+    // Identify spiritual challenges and gifts based on planetary positions
+    profile.spiritual_challenges = this.identifySpiritualChallenges(planetaryPositions);
+    profile.spiritual_gifts = [...profile.spiritual_gifts, ...this.identifySpiritualGifts(planetaryPositions)];
+
+    return profile;
+  }
+
+  // Determine spiritual path based on Moon nakshatra
+  determineSpiritualPath(moonNakshatra) {
+    const pathMap = {
+      'Ashwini': 'Path of healing and service',
+      'Bharani': 'Path of transformation and moral strength',
+      'Krittika': 'Path of purification and righteous action',
+      'Rohini': 'Path of creative manifestation and beauty',
+      'Mrigashirsha': 'Path of eternal seeking and knowledge',
+      'Ardra': 'Path of intense transformation and renewal',
+      'Punarvasu': 'Path of renewal and cyclical wisdom',
+      'Pushya': 'Path of nourishment and spiritual teaching',
+      'Ashlesha': 'Path of mystical wisdom and kundalini',
+      'Magha': 'Path of ancestral wisdom and tradition',
+      'Purva Phalguni': 'Path of creative expression and enjoyment',
+      'Uttara Phalguni': 'Path of service and reliable support',
+      'Hasta': 'Path of skillful manifestation and healing',
+      'Chitra': 'Path of divine artistry and cosmic architecture',
+      'Swati': 'Path of independence and diplomatic wisdom',
+      'Vishakha': 'Path of determined spiritual achievement',
+      'Anuradha': 'Path of devotion and harmonious relationships',
+      'Jyeshtha': 'Path of protection and occult knowledge',
+      'Mula': 'Path of root investigation and fundamental truth',
+      'Purva Ashadha': 'Path of invincible righteousness',
+      'Uttara Ashadha': 'Path of universal truth and final victory',
+      'Shravana': 'Path of learning and divine knowledge',
+      'Dhanishta': 'Path of wealth and group harmony',
+      'Shatabhisha': 'Path of healing and mystical innovation',
+      'Purva Bhadrapada': 'Path of spiritual transformation and sacrifice',
+      'Uttara Bhadrapada': 'Path of cosmic consciousness and deep wisdom',
+      'Revati': 'Path of completion and universal nourishment'
+    };
+
+    return pathMap[moonNakshatra.name] || 'Path of general spiritual development';
+  }
+
+  // Analyze karmic indicators
+  analyzeKarmicIndicators(planetaryPositions) {
+    const indicators = {
+      rahu_position: null,
+      ketu_position: null,
+      saturn_lessons: null,
+      karmic_debts: [],
+      karmic_gifts: []
+    };
+
+    if (planetaryPositions.RAHU) {
+      indicators.rahu_position = {
+        house: planetaryPositions.RAHU.house,
+        nakshatra: planetaryPositions.RAHU.nakshatra,
+        lesson: 'Material desires and worldly achievements to balance'
+      };
+    }
+
+    if (planetaryPositions.KETU) {
+      indicators.ketu_position = {
+        house: planetaryPositions.KETU.house,
+        nakshatra: planetaryPositions.KETU.nakshatra,
+        lesson: 'Past life skills and spiritual detachment'
+      };
+    }
+
+    if (planetaryPositions.SATURN) {
+      const saturnDignity = planetaryPositions.SATURN.dignity;
+      if (saturnDignity && saturnDignity.strength < 0) {
+        indicators.karmic_debts.push('Need to develop discipline and patience');
+      } else {
+        indicators.karmic_gifts.push('Natural discipline and perseverance');
+      }
+    }
+
+    return indicators;
+  }
+
+  // Identify spiritual challenges
+  identifySpiritualChallenges(planetaryPositions) {
+    const challenges = [];
+
+    // Check for debilitated planets
+    for (const [planet, position] of Object.entries(planetaryPositions)) {
+      if (!position || !position.dignity) continue;
+      
+      if (position.dignity.status === 'DEBILITATION') {
+        const challengeMap = {
+          SUN: 'Challenge with ego and self-confidence',
+          MOON: 'Emotional instability and mental peace challenges',
+          MARS: 'Anger management and channeling energy constructively',
+          MERCURY: 'Communication and analytical thinking challenges',
+          JUPITER: 'Wisdom and spiritual guidance challenges',
+          VENUS: 'Relationships and material attachment challenges',
+          SATURN: 'Discipline and patience development needed'
+        };
+        
+        if (challengeMap[planet]) {
+          challenges.push(challengeMap[planet]);
+        }
+      }
+    }
+
+    return challenges;
+  }
+
+  // Identify spiritual gifts
+  identifySpiritualGifts(planetaryPositions) {
+    const gifts = [];
+
+    // Check for exalted planets
+    for (const [planet, position] of Object.entries(planetaryPositions)) {
+      if (!position || !position.dignity) continue;
+      
+      if (position.dignity.status === 'EXALTATION') {
+        const giftMap = {
+          SUN: 'Natural leadership and soul radiance',
+          MOON: 'Deep intuition and emotional wisdom',
+          MARS: 'Courage and righteous action',
+          MERCURY: 'Brilliant communication and analytical skills',
+          JUPITER: 'Profound wisdom and spiritual teaching ability',
+          VENUS: 'Divine love and artistic beauty',
+          SATURN: 'Exceptional discipline and organizational skills'
+        };
+        
+        if (giftMap[planet]) {
+          gifts.push(giftMap[planet]);
+        }
+      }
+    }
+
+    return gifts;
+  }
+
+  // Calculate enhanced positivity score with spiritual factors
+  calculateEnhancedPositivityScore(birthDate, targetDate, latitude, longitude, planetaryPositions) {
+    // Base positivity calculation
+    let baseScore = this.calculatePositivityScore(birthDate, targetDate, latitude, longitude);
+
+    // Add nakshatra-based enhancements
+    let nakshatraBonus = 0;
+    let strengthBonus = 0;
+    let planetCount = 0;
+
+    for (const [planet, position] of Object.entries(planetaryPositions)) {
+      if (!position || !position.longitude) continue;
+      
+      planetCount++;
+
+      // Nakshatra influence
+      if (position.nakshatra) {
+        const nakshatraStrength = this.nakshatraSystem.calculateSpiritualStrength(position.nakshatra);
+        nakshatraBonus += nakshatraStrength * (this.planetWeights[planet] || 0);
+      }
+
+      // Dignity influence
+      if (position.dignity) {
+        strengthBonus += position.dignity.strength * (this.planetWeights[planet] || 0);
+      }
+
+      // Spiritual strength influence
+      if (position.spiritual_strength) {
+        strengthBonus += position.spiritual_strength * 0.1 * (this.planetWeights[planet] || 0);
+      }
+    }
+
+    // Normalize bonuses
+    if (planetCount > 0) {
+      nakshatraBonus /= planetCount;
+      strengthBonus /= planetCount;
+    }
+
+    // Combine all factors
+    const enhancedScore = baseScore + (nakshatraBonus * 0.3) + (strengthBonus * 0.4);
+    
+    return Math.max(-1, Math.min(1, enhancedScore));
   }
 }
 
