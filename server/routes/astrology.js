@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const VedicAstrologyEngine = require('../utils/vedicEngine');
-const { randomUUID } = require('crypto');
+const DeepSeekService = require('../utils/deepseekService');
 const jwt = require('jsonwebtoken');
+const { randomUUID } = require('crypto');
 
 const astrologyEngine = new VedicAstrologyEngine();
+const deepseekService = new DeepSeekService();
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -74,6 +76,11 @@ router.post('/prediction', authenticateToken, async (req, res) => {
         milestoneAnalysis: (prediction.milestoneAnalysis || []).length
       });
 
+      // Generate positive insights using DeepSeek
+      console.log('🤖 Generating positive insights with AI...');
+      const enhancedPrediction = await deepseekService.enhancePredictionWithInsights(prediction);
+      console.log('✅ Positive insights generated successfully');
+
     // Save user data to database
     // Save prediction to database if user is authenticated
     let predictionId = null;
@@ -85,7 +92,7 @@ router.post('/prediction', authenticateToken, async (req, res) => {
         await req.db.runAsync(`
           INSERT INTO predictions (id, userId, predictionData, positivityScore, createdAt)
           VALUES (?, ?, ?, ?, ?)
-        `, [predictionId, req.user.userId, JSON.stringify(prediction), positivityScore, new Date().toISOString()]);
+        `, [predictionId, req.user.userId, JSON.stringify(enhancedPrediction), positivityScore, new Date().toISOString()]);
         
         console.log('✅ Prediction saved to database for user:', req.user.userId);
       } catch (error) {
@@ -98,7 +105,7 @@ router.post('/prediction', authenticateToken, async (req, res) => {
       success: true,
       predictionId,
       prediction: {
-        ...prediction,
+        ...enhancedPrediction,
         userInfo: {
           name,
           birthDate: fullBirthDateTime,

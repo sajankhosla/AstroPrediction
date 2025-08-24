@@ -64,7 +64,9 @@ const ResultsPage = () => {
     adjustedPositivityScore = null,
     classicalInsights = {},
     futureProjections = [],
-    sinusoidalTrend = null
+    sinusoidalTrend = null,
+    positiveInsights = null,
+    spiritualProfile = null
   } = prediction || {};
   
   console.log('Extracted data:', {
@@ -234,6 +236,7 @@ const ResultsPage = () => {
         >
           {[
             { id: 'overview', label: 'Overview', icon: Star },
+            ...(positiveInsights ? [{ id: 'insights', label: '🤖 AI Insights', icon: Star }] : []),
             { id: 'chart', label: 'Positivity Chart', icon: TrendingUp },
             { id: 'astro', label: 'Astronomical Chart', icon: Star },
             { id: 'planets', label: 'Planetary Positions', icon: Star },
@@ -329,6 +332,130 @@ const ResultsPage = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* AI Insights Tab */}
+          {activeTab === 'insights' && positiveInsights && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl p-6 border border-purple-300/30">
+                <h2 className="text-3xl font-bold text-white mb-6 flex items-center">
+                  🤖✨ AI-Powered Positive Insights
+                </h2>
+                
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-white/10 rounded-lg p-4">
+                    <h3 className="text-xl font-semibold text-yellow-300 mb-3">🌟 Your Strengths</h3>
+                    <ul className="space-y-2">
+                      {positiveInsights.strengths?.map((strength, index) => (
+                        <li key={index} className="text-green-200 flex items-start">
+                          <span className="text-green-400 mr-2">•</span>
+                          {strength}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white/10 rounded-lg p-4">
+                    <h3 className="text-xl font-semibold text-blue-300 mb-3">🚀 Growth Opportunities</h3>
+                    <ul className="space-y-2">
+                      {positiveInsights.opportunities?.map((opportunity, index) => (
+                        <li key={index} className="text-blue-200 flex items-start">
+                          <span className="text-blue-400 mr-2">•</span>
+                          {opportunity}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 mb-4">
+                  <h3 className="text-xl font-semibold text-purple-300 mb-3">💫 Your Cosmic Summary</h3>
+                  <p className="text-gray-200 leading-relaxed">{positiveInsights.summary}</p>
+                </div>
+
+                {positiveInsights.recommendations && (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-orange-300 mb-2">🧘 Spiritual</h4>
+                      <ul className="space-y-1 text-sm">
+                        {positiveInsights.recommendations.spiritual_practices?.map((practice, index) => (
+                          <li key={index} className="text-orange-200">• {practice}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-pink-300 mb-2">💼 Career</h4>
+                      <ul className="space-y-1 text-sm">
+                        {positiveInsights.recommendations.career?.map((advice, index) => (
+                          <li key={index} className="text-pink-200">• {advice}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-green-300 mb-2">💝 Relationships</h4>
+                      <ul className="space-y-1 text-sm">
+                        {positiveInsights.recommendations.relationships?.map((advice, index) => (
+                          <li key={index} className="text-green-200">• {advice}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-cyan-300 mb-2">🌅 Daily Life</h4>
+                      <ul className="space-y-1 text-sm">
+                        {positiveInsights.recommendations.daily_life?.map((advice, index) => (
+                          <li key={index} className="text-cyan-200">• {advice}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {positiveInsights.timing_guidance && (
+                  <div className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-lg p-4 mb-4">
+                    <h4 className="text-lg font-semibold text-indigo-300 mb-2">⏰ Cosmic Timing</h4>
+                    <p className="text-indigo-100">{positiveInsights.timing_guidance}</p>
+                  </div>
+                )}
+
+                {positiveInsights.encouragement && (
+                  <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-lg p-4 border border-yellow-300/30">
+                    <h4 className="text-lg font-semibold text-yellow-300 mb-2">🌈 Encouragement</h4>
+                    <p className="text-yellow-100 leading-relaxed font-medium">{positiveInsights.encouragement}</p>
+                  </div>
+                )}
+              </div>
+
+              {spiritualProfile && (
+                <div className="astrology-card">
+                  <h3 className="text-2xl font-semibold text-white mb-4">🕉️ Spiritual Profile</h3>
+                  
+                  {spiritualProfile.birth_moon_nakshatra && (
+                    <div className="mb-4 p-4 bg-purple-500/20 rounded-lg">
+                      <h4 className="text-lg font-semibold text-purple-300 mb-2">Birth Moon Nakshatra</h4>
+                      <p className="text-white font-medium">{spiritualProfile.birth_moon_nakshatra.name}</p>
+                      <p className="text-gray-300 text-sm mt-1">{spiritualProfile.spiritual_path}</p>
+                    </div>
+                  )}
+
+                  {spiritualProfile.spiritual_gifts && spiritualProfile.spiritual_gifts.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-lg font-semibold text-green-300 mb-2">Spiritual Gifts</h4>
+                      <ul className="space-y-1">
+                        {spiritualProfile.spiritual_gifts.map((gift, index) => (
+                          <li key={index} className="text-green-200 flex items-start">
+                            <span className="text-green-400 mr-2">•</span>
+                            {gift}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

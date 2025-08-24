@@ -109,6 +109,75 @@ const DemoInsights = () => {
               </button>
             </div>
 
+            {/* AI Positive Insights Section */}
+            {insights.positiveInsights && (
+              <div className="mb-8 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl p-6 border border-purple-300/30">
+                <h2 className="text-3xl font-bold text-white mb-6 flex items-center">
+                  🤖✨ AI-Powered Positive Insights
+                </h2>
+                
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-white/10 rounded-lg p-4">
+                    <h3 className="text-xl font-semibold text-yellow-300 mb-3">🌟 Your Strengths</h3>
+                    <ul className="space-y-2">
+                      {insights.positiveInsights.strengths?.map((strength, index) => (
+                        <li key={index} className="text-green-200 flex items-start">
+                          <span className="text-green-400 mr-2">•</span>
+                          {strength}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white/10 rounded-lg p-4">
+                    <h3 className="text-xl font-semibold text-blue-300 mb-3">🚀 Growth Opportunities</h3>
+                    <ul className="space-y-2">
+                      {insights.positiveInsights.opportunities?.map((opportunity, index) => (
+                        <li key={index} className="text-blue-200 flex items-start">
+                          <span className="text-blue-400 mr-2">•</span>
+                          {opportunity}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-lg p-4 mb-4">
+                  <h3 className="text-xl font-semibold text-purple-300 mb-3">💫 Your Cosmic Summary</h3>
+                  <p className="text-gray-200 leading-relaxed">{insights.positiveInsights.summary}</p>
+                </div>
+
+                {insights.positiveInsights.recommendations && (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-orange-300 mb-2">🧘 Spiritual Practices</h4>
+                      <ul className="space-y-1 text-sm">
+                        {insights.positiveInsights.recommendations.spiritual_practices?.map((practice, index) => (
+                          <li key={index} className="text-orange-200">• {practice}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    <div className="bg-white/10 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-pink-300 mb-2">💼 Career Guidance</h4>
+                      <ul className="space-y-1 text-sm">
+                        {insights.positiveInsights.recommendations.career?.map((advice, index) => (
+                          <li key={index} className="text-pink-200">• {advice}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {insights.positiveInsights.encouragement && (
+                  <div className="mt-6 bg-gradient-to-r from-gold-500/20 to-yellow-500/20 rounded-lg p-4 border border-yellow-300/30">
+                    <h4 className="text-lg font-semibold text-yellow-300 mb-2">🌈 Encouragement</h4>
+                    <p className="text-yellow-100 leading-relaxed font-medium">{insights.positiveInsights.encouragement}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Planetary Positions */}
               <div className="astrology-card">
@@ -116,11 +185,18 @@ const DemoInsights = () => {
                   <Star className="mr-2" /> Planetary Positions
                 </h2>
                 <div className="space-y-3">
-                  {Object.entries(insights.planetaryPositions).map(([planet, data]) => (
+                  {Object.entries(insights.planetaryPositions)
+                    .filter(([planet, data]) => planet !== 'chart_analysis' && data && typeof data.longitude === 'number')
+                    .map(([planet, data]) => (
                     <div key={planet} className="planet-card">
                       <div className="planet-name">{planet}</div>
                       <div className="planet-position">
                         {data.longitude.toFixed(1)}° in House {data.house}
+                        {data.nakshatra && (
+                          <div className="text-sm text-purple-300 mt-1">
+                            {data.nakshatra.name} nakshatra
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

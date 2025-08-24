@@ -24,7 +24,8 @@ const AstroChart = ({ planetaryPositions = {}, size = 520 }) => {
   const innerR = outerR * 0.78;
   const tickR = outerR * 0.9;
 
-  const planets = Object.entries(planetaryPositions);
+  const planets = Object.entries(planetaryPositions)
+    .filter(([planet, data]) => planet !== 'chart_analysis' && data && typeof data.longitude === 'number');
 
   return (
     <div className="w-full flex justify-center">

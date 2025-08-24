@@ -16,14 +16,16 @@ const PlanetaryVisualization = ({ planetaryPositions, aspects, dasha, positivity
     'KETU': '#4B0082'
   };
 
-  // House positions data for pie chart
-  const houseData = Object.entries(planetaryPositions).map(([planet, data]) => ({
-    name: planet,
-    value: data.house,
-    color: planetColors[planet] || '#8884d8',
-    longitude: data.longitude,
-    house: data.house
-  }));
+  // House positions data for pie chart - filter out chart_analysis
+  const houseData = Object.entries(planetaryPositions)
+    .filter(([planet, data]) => planet !== 'chart_analysis' && data && typeof data.longitude === 'number')
+    .map(([planet, data]) => ({
+      name: planet,
+      value: data.house,
+      color: planetColors[planet] || '#8884d8',
+      longitude: data.longitude,
+      house: data.house
+    }));
 
   // Use backend future projections or generate fallback
   const getFutureProjections = () => {
@@ -133,7 +135,9 @@ const PlanetaryVisualization = ({ planetaryPositions, aspects, dasha, positivity
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Current Positions</h3>
             <div className="space-y-3">
-              {Object.entries(planetaryPositions).map(([planet, data]) => (
+              {Object.entries(planetaryPositions)
+                .filter(([planet, data]) => planet !== 'chart_analysis' && data && typeof data.longitude === 'number')
+                .map(([planet, data]) => (
                 <div key={planet} className="flex items-center justify-between bg-gray-700 bg-opacity-50 rounded-lg p-3">
                   <div className="flex items-center">
                     <div 
@@ -145,6 +149,9 @@ const PlanetaryVisualization = ({ planetaryPositions, aspects, dasha, positivity
                   <div className="text-right">
                     <div className="text-yellow-400">House {data.house}</div>
                     <div className="text-gray-300 text-sm">{data.longitude.toFixed(1)}°</div>
+                    {data.nakshatra && (
+                      <div className="text-purple-300 text-xs">{data.nakshatra.name}</div>
+                    )}
                   </div>
                 </div>
               ))}
