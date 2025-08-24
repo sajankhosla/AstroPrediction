@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const passport = require('passport');
 const { randomUUID } = require('crypto');
 const router = express.Router();
 
@@ -228,6 +229,82 @@ router.put('/change-password', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Google OAuth Routes
+router.get('/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  async (req, res) => {
+    try {
+      // Create JWT token for the user
+      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+      
+      // Remove sensitive data
+      const user = { ...req.user };
+      delete user.password;
+      delete user.googleId;
+      delete user.facebookId;
+
+      // Redirect to frontend with token
+      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      res.redirect('/login?error=oauth_failed');
+    }
+  }
+);
+
+// Facebook OAuth Routes
+router.get('/facebook',
+  passport.authenticate('facebook', { scope: ['email'] })
+);
+
+router.get('/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  async (req, res) => {
+    try {
+      // Create JWT token for the user
+      const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+      
+      // Remove sensitive data
+      const user = { ...req.user };
+      delete user.password;
+      delete user.googleId;
+      delete user.facebookId;
+
+      // Redirect to frontend with token
+      const frontendURL = process.env.FRONTEND_URL || 'http://localhost:3000';
+      res.redirect(`${frontendURL}/auth/callback?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+    } catch (error) {
+      console.error('Facebook OAuth callback error:', error);
+      res.redirect('/login?error=oauth_failed');
+    }
+  }
+);
+
+// OAuth success endpoint (for frontend to call)
+router.get('/oauth/success', (req, res) => {
+  if (req.user) {
+    const user = { ...req.user };
+    delete user.password;
+    delete user.googleId;
+    delete user.facebookId;
+    
+    const token = jwt.sign({ userId: req.user.id, email: req.user.email }, JWT_SECRET, { expiresIn: '7d' });
+    
+    res.json({
+      success: true,
+      user,
+      token
+    });
+  } else {
+    res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 });
 

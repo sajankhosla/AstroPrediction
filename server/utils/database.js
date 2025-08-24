@@ -22,12 +22,15 @@ const initializeDatabase = () => {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
+        password TEXT,
         birthDate TEXT,
         birthTime TEXT,
         birthPlace TEXT,
         latitude REAL,
         longitude REAL,
+        googleId TEXT,
+        facebookId TEXT,
+        avatar TEXT,
         createdAt TEXT NOT NULL
       )
     `, (err) => {
@@ -37,6 +40,12 @@ const initializeDatabase = () => {
         return;
       }
       console.log('✅ Users table ready');
+      
+      // Add OAuth columns if they don't exist (migration)
+      db.run(`ALTER TABLE users ADD COLUMN googleId TEXT`, () => {});
+      db.run(`ALTER TABLE users ADD COLUMN facebookId TEXT`, () => {});
+      db.run(`ALTER TABLE users ADD COLUMN avatar TEXT`, () => {});
+      console.log('✅ OAuth migration completed');
       
       // Create predictions table
       db.run(`

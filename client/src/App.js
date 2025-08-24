@@ -11,6 +11,7 @@ import BirthStarTimeline from './components/BirthStarTimeline';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Profile from './components/Auth/Profile';
+import OAuthCallback from './components/Auth/OAuthCallback';
 import Dashboard from './components/Dashboard/Dashboard';
 import './App.css';
 
@@ -144,6 +145,11 @@ function App() {
                 />
               )}
             </AuthRoute>
+          } />
+          
+          {/* OAuth callback route */}
+          <Route path="/auth/callback" element={
+            <OAuthCallback onLoginSuccess={handleLoginSuccess} />
           } />
           
           {/* Protected routes */}

@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const session = require('express-session');
+const passport = require('passport');
 const path = require('path');
 require('dotenv').config();
 
@@ -9,6 +11,7 @@ const astrologyRoutes = require('./routes/astrology');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const db = require('./utils/database');
+const configurePassport = require('./config/passport');
 
 const createApp = () => {
   const app = express();
@@ -29,6 +32,24 @@ const createApp = () => {
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
+
+  // Session middleware for OAuth
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'your-session-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Configure Passport strategies
+  configurePassport(db);
 
   app.use((req, res, next) => {
     req.db = db;
