@@ -103,6 +103,14 @@ const LandingPage = () => {
                 <ArrowRight className="w-5 h-5" />
               </button>
               
+              <button 
+                onClick={() => navigate('/demo')}
+                className="px-8 py-4 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all duration-200 flex items-center space-x-2"
+              >
+                <Star className="w-5 h-5" />
+                <span>Try Demo</span>
+              </button>
+              
               <button className="px-8 py-4 border-2 border-purple-500 text-purple-300 rounded-lg hover:bg-purple-500 hover:text-white transition-all duration-200">
                 Learn More
               </button>

@@ -28,7 +28,21 @@ const authenticateToken = (req, res, next) => {
 
 // POST /api/astrology/prediction
 // Generate comprehensive prediction with positivity sinusoid
-router.post('/prediction', authenticateToken, async (req, res) => {
+router.post('/prediction', async (req, res) => {
+  // Optional authentication - work without token for demo
+  let user = null;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (token && token !== 'demo-token') {
+    try {
+      user = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+      req.user = user;
+    } catch (err) {
+      // Continue without authentication for demo mode
+      console.log('🎪 Demo mode: continuing without authentication');
+    }
+  }
   try {
     const {
       name,
