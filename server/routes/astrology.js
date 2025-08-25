@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const VedicAstrologyEngine = require('../utils/vedicEngine');
 const DeepSeekService = require('../utils/deepseekService');
+const VercelAIService = require('../utils/vercelAIService');
 const jwt = require('jsonwebtoken');
 const { randomUUID } = require('crypto');
 
 const astrologyEngine = new VedicAstrologyEngine();
 const deepseekService = new DeepSeekService();
+const vercelAIService = new VercelAIService();
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -90,10 +92,19 @@ router.post('/prediction', async (req, res) => {
         milestoneAnalysis: (prediction.milestoneAnalysis || []).length
       });
 
-      // Generate positive insights using DeepSeek
+      // Generate positive insights using Vercel AI (local processing)
       console.log('🤖 Generating positive insights with AI...');
-      const enhancedPrediction = await deepseekService.enhancePredictionWithInsights(prediction);
-      console.log('✅ Positive insights generated successfully');
+      let enhancedPrediction;
+      try {
+        // Primary: Use Vercel AI service (runs locally on serverless)
+        enhancedPrediction = await vercelAIService.enhancePredictionWithInsights(prediction);
+        console.log('✅ Generated insights using Vercel AI Service (local processing)');
+      } catch (error) {
+        console.log('🔄 Vercel AI failed, trying DeepSeek fallback...', error.message);
+        // Fallback: Use DeepSeek service if Vercel AI fails
+        enhancedPrediction = await deepseekService.enhancePredictionWithInsights(prediction);
+        console.log('✅ Generated insights using DeepSeek fallback');
+      }
 
     // Save user data to database
     // Save prediction to database if user is authenticated
